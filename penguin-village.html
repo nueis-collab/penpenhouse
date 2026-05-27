@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>🐧 펭귄마을</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Nanum+Gothic:wght@400;700;800&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #0d1117;
+    --bg2: #161b22;
+    --bg3: #21262d;
+    --border: #30363d;
+    --accent: #58a6ff;
+    --accent2: #3fb950;
+    --accent3: #f78166;
+    --text: #e6edf3;
+    --text2: #8b949e;
+    --penguin: #4A90D9;
+    --radius: 12px;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Gowun Dodum',sans-serif; background:var(--bg); color:var(--text); height:100vh; overflow:hidden; }
+
+  /* ── AUTH ── */
+  #auth-screen {
+    display:flex; align-items:center; justify-content:center;
+    height:100vh;
+    background: radial-gradient(ellipse at 50% 0%, #1a3a5c 0%, #0d1117 70%);
+  }
+  .auth-box {
+    background:var(--bg2); border:1px solid var(--border);
+    border-radius:20px; padding:40px; width:380px;
+    box-shadow:0 20px 60px rgba(0,0,0,0.5);
+  }
+  .auth-logo { text-align:center; margin-bottom:30px; }
+  .auth-logo .penguin-big { font-size:60px; }
+  .auth-logo h1 { font-size:24px; font-weight:800; color:var(--accent); margin-top:8px; }
+  .auth-logo p { font-size:13px; color:var(--text2); margin-top:4px; }
+  .auth-tabs { display:flex; gap:4px; background:var(--bg3); border-radius:10px; padding:4px; margin-bottom:24px; }
+  .auth-tab { flex:1; padding:8px; text-align:center; border-radius:8px; cursor:pointer; font-size:14px; transition:all .2s; color:var(--text2); }
+  .auth-tab.active { background:var(--accent); color:#fff; font-weight:700; }
+  .auth-input { width:100%; background:var(--bg3); border:1px solid var(--border); border-radius:10px; padding:12px 14px; color:var(--text); font-size:14px; font-family:inherit; margin-bottom:10px; outline:none; transition:border .2s; }
+  .auth-input:focus { border-color:var(--accent); }
+  .auth-btn { width:100%; padding:12px; background:var(--accent); color:#fff; border:none; border-radius:10px; font-size:15px; font-weight:700; cursor:pointer; transition:opacity .2s; font-family:inherit; }
+  .auth-btn:hover { opacity:.85; }
+  .auth-btn:disabled { opacity:.5; cursor:not-allowed; }
+  .check-btn { padding:12px 14px; background:var(--bg3); border:1px solid var(--border); border-radius:10px; color:var(--text2); font-size:13px; cursor:pointer; white-space:nowrap; font-family:inherit; transition:all .2s; }
+  .check-btn:hover { border-color:var(--accent); color:var(--accent); }
+  .input-row { display:flex; gap:8px; margin-bottom:10px; }
+  .input-row .auth-input { margin-bottom:0; }
+  .msg { font-size:12px; padding:4px 8px; border-radius:6px; margin-bottom:8px; }
+  .msg.err { background:#3d1a1a; color:var(--accent3); }
+  .msg.ok { background:#1a3d1a; color:var(--accent2); }
+
+  /* ── MAIN LAYOUT ── */
+  #app { display:none; height:100vh; flex-direction:column; }
+  #app.visible { display:flex; }
+  .app-layout { display:flex; flex:1; overflow:hidden; }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    width:240px; background:var(--bg2); border-right:1px solid var(--border);
+    display:flex; flex-direction:column; flex-shrink:0;
+  }
+  .my-profile {
+    padding:16px; border-bottom:1px solid var(--border);
+    display:flex; align-items:center; gap:10px; cursor:pointer;
+    transition:background .2s;
+  }
+  .my-profile:hover { background:var(--bg3); }
+  .avatar { width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0; border:2px solid var(--border); }
+  .my-profile .info .name { font-size:14px; font-weight:700; }
+  .my-profile .info .status { font-size:11px; color:var(--accent2); }
+  .sidebar-section { padding:8px 12px; font-size:11px; color:var(--text2); font-weight:700; letter-spacing:.5px; text-transform:uppercase; }
+  .channel-item {
+    padding:8px 16px; cursor:pointer; border-radius:8px; margin:1px 8px;
+    display:flex; align-items:center; gap:8px; font-size:14px; transition:background .2s;
+  }
+  .channel-item:hover { background:var(--bg3); }
+  .channel-item.active { background:var(--accent); color:#fff; }
+  .channel-item .ch-icon { font-size:16px; }
+  .sidebar-bottom { margin-top:auto; padding:12px; display:flex; flex-direction:column; gap:6px; }
+  .sidebar-btn { padding:10px 14px; background:var(--bg3); border:1px solid var(--border); border-radius:10px; color:var(--text); font-size:13px; cursor:pointer; font-family:inherit; display:flex; align-items:center; gap:8px; transition:all .2s; }
+  .sidebar-btn:hover { border-color:var(--accent); color:var(--accent); }
+
+  /* ── MAIN CONTENT ── */
+  .main-content { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+  .chat-header { padding:16px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:10px; background:var(--bg2); }
+  .chat-header h2 { font-size:16px; font-weight:700; }
+  .chat-header p { font-size:12px; color:var(--text2); }
+  .chat-messages { flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:10px; }
+  .chat-messages::-webkit-scrollbar { width:4px; }
+  .chat-messages::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+  .msg-item { display:flex; gap:10px; align-items:flex-start; }
+  .msg-item .msg-avatar { width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; background:var(--bg3); border:1px solid var(--border); }
+  .msg-item .msg-body .msg-meta { font-size:12px; color:var(--text2); margin-bottom:3px; }
+  .msg-item .msg-body .msg-meta span { color:var(--text); font-weight:700; margin-right:6px; }
+  .msg-item .msg-body .msg-text { font-size:14px; line-height:1.5; word-break:break-word; }
+  .chat-input-area { padding:12px 16px; border-top:1px solid var(--border); background:var(--bg2); }
+  .chat-input-row { display:flex; gap:8px; align-items:center; }
+  .chat-input { flex:1; background:var(--bg3); border:1px solid var(--border); border-radius:10px; padding:10px 14px; color:var(--text); font-size:14px; font-family:inherit; outline:none; resize:none; height:42px; transition:border .2s; }
+  .chat-input:focus { border-color:var(--accent); }
+  .send-btn { padding:10px 16px; background:var(--accent); color:#fff; border:none; border-radius:10px; cursor:pointer; font-size:16px; transition:opacity .2s; }
+  .send-btn:hover { opacity:.85; }
+
+  /* ── HOME (미니게임/메뉴) ── */
+  .home-content { flex:1; overflow-y:auto; padding:24px; }
+  .home-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(180px,1fr)); gap:16px; }
+  .home-card {
+    background:var(--bg2); border:1px solid var(--border); border-radius:16px;
+    padding:24px 16px; text-align:center; cursor:pointer; transition:all .3s;
+  }
+  .home-card:hover { border-color:var(--accent); transform:translateY(-3px); box-shadow:0 8px 24px rgba(88,166,255,.15); }
+  .home-card .card-icon { font-size:40px; margin-bottom:10px; }
+  .home-card .card-title { font-size:15px; font-weight:700; margin-bottom:4px; }
+  .home-card .card-desc { font-size:12px; color:var(--text2); }
+
+  /* ── RIGHT PANEL (친구목록) ── */
+  .right-panel { width:220px; background:var(--bg2); border-left:1px solid var(--border); display:flex; flex-direction:column; }
+  .right-panel h3 { padding:16px; font-size:14px; font-weight:700; border-bottom:1px solid var(--border); }
+  .friend-list { flex:1; overflow-y:auto; padding:8px; }
+  .friend-item { padding:8px 10px; border-radius:8px; display:flex; align-items:center; gap:8px; cursor:pointer; transition:background .2s; }
+  .friend-item:hover { background:var(--bg3); }
+  .friend-item .f-avatar { width:32px; height:32px; border-radius:50%; background:var(--bg3); display:flex; align-items:center; justify-content:center; font-size:16px; border:1px solid var(--border); }
+  .friend-item .f-name { font-size:13px; }
+  .friend-search { padding:10px; }
+  .friend-search input { width:100%; background:var(--bg3); border:1px solid var(--border); border-radius:8px; padding:8px 10px; color:var(--text); font-size:13px; font-family:inherit; outline:none; }
+
+  /* ── MODAL ── */
+  .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.7); display:flex; align-items:center; justify-content:center; z-index:100; backdrop-filter:blur(4px); }
+  .modal { background:var(--bg2); border:1px solid var(--border); border-radius:20px; padding:28px; width:90%; max-width:480px; max-height:85vh; overflow-y:auto; }
+  .modal h2 { font-size:18px; font-weight:800; margin-bottom:20px; }
+  .modal-close { float:right; background:none; border:none; color:var(--text2); font-size:20px; cursor:pointer; margin-top:-4px; }
+
+  /* ── PROFILE PAGE ── */
+  .profile-page { background:var(--bg); min-height:100%; }
+  .profile-header { position:relative; height:140px; border-radius:16px; margin-bottom:0; overflow:hidden; }
+  .profile-header-bg { width:100%; height:100%; object-fit:cover; }
+  .profile-penguin-area { display:flex; align-items:flex-end; gap:16px; padding:0 20px; margin-top:-30px; position:relative; z-index:1; }
+  .profile-penguin { width:80px; height:80px; border-radius:50%; background:var(--bg2); border:3px solid var(--bg); display:flex; align-items:center; justify-content:center; font-size:42px; }
+  .profile-info { padding:8px 20px 16px; }
+  .profile-nickname { font-size:20px; font-weight:800; }
+  .profile-bio { font-size:13px; color:var(--text2); margin-top:4px; }
+  .profile-stickers { display:flex; gap:8px; flex-wrap:wrap; padding:0 20px 16px; }
+  .profile-sticker { width:60px; height:60px; border-radius:10px; border:1px dashed var(--border); display:flex; align-items:center; justify-content:center; overflow:hidden; }
+  .profile-sticker img { width:100%; height:100%; object-fit:contain; }
+  .profile-actions { padding:0 20px 20px; display:flex; gap:8px; }
+  .profile-action-btn { padding:8px 16px; border-radius:8px; border:1px solid var(--border); background:var(--bg3); color:var(--text); font-size:13px; cursor:pointer; font-family:inherit; transition:all .2s; }
+  .profile-action-btn:hover { border-color:var(--accent); color:var(--accent); }
+  .profile-action-btn.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .profile-diaryboard { background:var(--bg3); border-radius:12px; margin:0 20px 20px; padding:16px; min-height:120px; position:relative; overflow:hidden; }
+
+  /* ── CANVAS MODAL ── */
+  #draw-canvas { border:1px solid var(--border); border-radius:10px; background:#fff; cursor:crosshair; touch-action:none; }
+  .draw-tools { display:flex; gap:8px; align-items:center; margin-bottom:10px; flex-wrap:wrap; }
+  .draw-tools input[type=color] { width:36px; height:36px; border:none; border-radius:8px; cursor:pointer; background:none; }
+  .draw-tools input[type=range] { width:80px; }
+  .tool-btn { padding:6px 12px; border-radius:8px; border:1px solid var(--border); background:var(--bg3); color:var(--text); font-size:12px; cursor:pointer; font-family:inherit; }
+  .tool-btn.active { border-color:var(--accent); color:var(--accent); }
+
+  /* ── RANKING ── */
+  .rank-list { display:flex; flex-direction:column; gap:8px; }
+  .rank-item { display:flex; align-items:center; gap:12px; padding:10px 14px; background:var(--bg3); border-radius:10px; }
+  .rank-num { font-size:18px; font-weight:800; width:30px; text-align:center; }
+  .rank-num.gold { color:#FFD700; }
+  .rank-num.silver { color:#C0C0C0; }
+  .rank-num.bronze { color:#CD7F32; }
+  .rank-name { flex:1; font-size:14px; }
+  .rank-score { font-size:14px; font-weight:700; color:var(--accent); }
+
+  /* ── ADMIN ── */
+  .admin-table { width:100%; border-collapse:collapse; font-size:13px; }
+  .admin-table th { background:var(--bg3); padding:10px; text-align:left; border-bottom:1px solid var(--border); }
+  .admin-table td { padding:10px; border-bottom:1px solid var(--border); }
+  .admin-table tr:hover td { background:var(--bg3); }
+
+  /* ── NOTIFICATIONS ── */
+  #notif-container { position:fixed; top:16px; right:16px; z-index:999; display:flex; flex-direction:column; gap:8px; }
+  .notif { background:var(--bg2); border:1px solid var(--border); border-radius:10px; padding:12px 16px; font-size:13px; box-shadow:0 4px 12px rgba(0,0,0,.4); animation:slideIn .3s ease; min-width:220px; }
+  .notif.ok { border-left:3px solid var(--accent2); }
+  .notif.err { border-left:3px solid var(--accent3); }
+  @keyframes slideIn { from{transform:translateX(100%);opacity:0} to{transform:translateX(0);opacity:1} }
+
+  .hidden { display:none!important; }
+  .loading { text-align:center; color:var(--text2); padding:20px; font-size:13px; }
+  .empty { text-align:center; color:var(--text2); padding:40px; font-size:14px; }
+</style>
+</head>
+<body>
+
+<!-- NOTIFICATIONS -->
+<div id="notif-container"></div>
+
+<!-- AUTH SCREEN -->
+<div id="auth-screen">
+  <div class="auth-box">
+    <div class="auth-logo">
+      <div class="penguin-big">🐧</div>
+      <h1>펭귄마을</h1>
+      <p>따뜻한 펭귄들의 아지트</p>
+    </div>
+    <div class="auth-tabs">
+      <div class="auth-tab active" onclick="switchTab('login')">로그인</div>
+      <div class="auth-tab" onclick="switchTab('signup')">회원가입</div>
+    </div>
+
+    <!-- LOGIN -->
+    <div id="login-form">
+      <input class="auth-input" id="login-nick" placeholder="닉네임" autocomplete="off"/>
+      <input class="auth-input" id="login-pw" type="password" placeholder="비밀번호"/>
+      <div id="login-msg"></div>
+      <button class="auth-btn" onclick="doLogin()">로그인</button>
+    </div>
+
+    <!-- SIGNUP -->
+    <div id="signup-form" class="hidden">
+      <div class="input-row">
+        <input class="auth-input" id="signup-nick" placeholder="닉네임" autocomplete="off"/>
+        <button class="check-btn" onclick="checkNickname()">중복확인</button>
+      </div>
+      <div id="nick-msg"></div>
+      <input class="auth-input" id="signup-pw" type="password" placeholder="비밀번호 (6자 이상)"/>
+      <input class="auth-input" id="signup-pw2" type="password" placeholder="비밀번호 확인"/>
+      <div id="signup-msg"></div>
+      <button class="auth-btn" id="signup-btn" onclick="doSignup()" disabled>가입하기</button>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <div class="app-layout">
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <div class="my-profile" onclick="openMyProfile()">
+        <div class="avatar" id="my-avatar" style="background:var(--bg3)">🐧</div>
+        <div class="info">
+          <div class="name" id="my-nickname">로딩중...</div>
+          <div class="status">● 온라인</div>
+        </div>
+      </div>
+
+      <div class="sidebar-section">메뉴</div>
+      <div class="channel-item active" id="nav-home" onclick="showSection('home')">
+        <span class="ch-icon">🏠</span> 홈
+      </div>
+
+      <div class="sidebar-section">채팅방</div>
+      <div class="channel-item" id="nav-consult" onclick="openChannel('00000000-0000-0000-0000-000000000001','고민상담소','무엇이든 털어놓으세요 🐧')">
+        <span class="ch-icon">💬</span> 고민상담소
+      </div>
+      <div class="channel-item" id="nav-notice" onclick="openChannel('00000000-0000-0000-0000-000000000002','업데이트 공지','새로운 소식을 전해드려요 📢')">
+        <span class="ch-icon">📢</span> 업데이트 공지
+      </div>
+      <div class="sidebar-section">DM</div>
+      <div id="dm-list"></div>
+
+      <div class="sidebar-bottom">
+        <button class="sidebar-btn" onclick="openFriendSearch()">🔍 친구 검색</button>
+        <button class="sidebar-btn" onclick="openStickers()">🎨 스티커 상점</button>
+        <button class="sidebar-btn" id="admin-btn" onclick="openAdmin()" style="display:none">⚙️ 관리자</button>
+        <button class="sidebar-btn" onclick="doLogout()" style="color:var(--accent3)">🚪 로그아웃</button>
+      </div>
+    </div>
+
+    <!-- MAIN -->
+    <div class="main-content" id="main-content">
+      <!-- HOME -->
+      <div id="section-home" class="home-content">
+        <h2 style="margin-bottom:8px;font-size:20px">🐧 펭귄마을에 오신 걸 환영해요!</h2>
+        <p style="color:var(--text2);font-size:13px;margin-bottom:24px">무엇을 하고 싶으신가요?</p>
+        <div class="home-grid">
+          <div class="home-card" onclick="openChannel('00000000-0000-0000-0000-000000000001','고민상담소','무엇이든 털어놓으세요 🐧')">
+            <div class="card-icon">💬</div>
+            <div class="card-title">고민상담소</div>
+            <div class="card-desc">다 털어놓아요</div>
+          </div>
+          <div class="home-card" onclick="openGameModal()">
+            <div class="card-icon">🎮</div>
+            <div class="card-title">미니게임</div>
+            <div class="card-desc">랭킹에 도전해보세요</div>
+          </div>
+          <div class="home-card" onclick="openMyProfile()">
+            <div class="card-icon">🐧</div>
+            <div class="card-title">내 프로필</div>
+            <div class="card-desc">다이어리를 꾸며요</div>
+          </div>
+          <div class="home-card" onclick="openStickers()">
+            <div class="card-icon">🎨</div>
+            <div class="card-title">스티커 상점</div>
+            <div class="card-desc">스티커를 만들고 공유해요</div>
+          </div>
+          <div class="home-card" onclick="openFriendSearch()">
+            <div class="card-icon">🔍</div>
+            <div class="card-title">친구 찾기</div>
+            <div class="card-desc">닉네임으로 검색해요</div>
+          </div>
+          <div class="home-card" onclick="openRanking()">
+            <div class="card-icon">🏆</div>
+            <div class="card-title">랭킹</div>
+            <div class="card-desc">TOP 플레이어</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CHAT -->
+      <div id="section-chat" class="hidden" style="display:none;flex-direction:column;flex:1;overflow:hidden">
+        <div class="chat-header">
+          <div>
+            <h2 id="chat-title">채널</h2>
+            <p id="chat-desc"></p>
+          </div>
+        </div>
+        <div class="chat-messages" id="chat-messages">
+          <div class="loading">메시지를 불러오는 중...</div>
+        </div>
+        <div class="chat-input-area">
+          <div class="chat-input-row">
+            <textarea class="chat-input" id="chat-input" placeholder="메시지를 입력하세요..." rows="1"
+              onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage()}"></textarea>
+            <button class="send-btn" onclick="sendMessage()">➤</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL -->
+    <div class="right-panel">
+      <h3>👥 친구목록</h3>
+      <div class="friend-search">
+        <input placeholder="친구 검색..." id="friend-filter" oninput="filterFriends(this.value)"/>
+      </div>
+      <div class="friend-list" id="friend-list-panel">
+        <div class="empty">친구를 추가해보세요!</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODALS -->
+<div id="modal-container"></div>
+
+<script>
+const SUPABASE_URL = 'https://hzgoezgwdqthtfahcdtt.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh6Z29lemd3ZHF0aHRmYWhjZHR0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4OTA3NjUsImV4cCI6MjA5NTQ2Njc2NX0.-naqnOee8tFLCjpuNnCd66dCSFyZM-57ySnNohmjm-U';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let currentUser = null;
+let currentProfile = null;
+let currentChannel = null;
+let chatSubscription = null;
+let nicknameVerified = false;
+let allFriends = [];
+
+// ── NOTIFY ──
+function notify(msg, type='ok') {
+  const el = document.createElement('div');
+  el.className = `notif ${type}`;
+  el.textContent = msg;
+  document.getElementById('notif-container').appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+// ── AUTH TAB ──
+function switchTab(tab) {
+  document.getElementById('login-form').classList.toggle('hidden', tab !== 'login');
+  document.getElementById('signup-form').classList.toggle('hidden', tab !== 'signup');
+  document.querySelectorAll('.auth-tab').forEach((t,i) => t.classList.toggle('active', (i===0&&tab==='login')||(i===1&&tab==='signup')));
+  nicknameVerified = false;
+}
+
+// ── NICKNAME CHECK ──
+async function checkNickname() {
+  const nick = document.getElementById('signup-nick').value.trim();
+  const el = document.getElementById('nick-msg');
+  if (!nick || nick.length < 2) { el.className='msg err'; el.textContent='닉네임은 2자 이상이어야 해요'; return; }
+  const {data} = await sb.from('profiles').select('id').eq('nickname', nick).maybeSingle();
+  if (data) { el.className='msg err'; el.textContent='이미 사용중인 닉네임이에요 😢'; nicknameVerified=false; }
+  else { el.className='msg ok'; el.textContent='사용 가능한 닉네임이에요 🎉'; nicknameVerified=true; document.getElementById('signup-btn').disabled=false; }
+}
+
+// ── SIGNUP ──
+async function doSignup() {
+  if (!nicknameVerified) { notify('닉네임 중복확인을 해주세요', 'err'); return; }
+  const nick = document.getElementById('signup-nick').value.trim();
+  const pw = document.getElementById('signup-pw').value;
+  const pw2 = document.getElementById('signup-pw2').value;
+  const el = document.getElementById('signup-msg');
+  if (pw.length < 6) { el.className='msg err'; el.textContent='비밀번호는 6자 이상이어야 해요'; return; }
+  if (pw !== pw2) { el.className='msg err'; el.textContent='비밀번호가 일치하지 않아요'; return; }
+  const email = `${nick}@penguin.village`;
+  const {data, error} = await sb.auth.signUp({email, password:pw});
+  if (error) { el.className='msg err'; el.textContent=error.message; return; }
+  const {error:pe} = await sb.from('profiles').insert({id:data.user.id, nickname:nick});
+  if (pe) { el.className='msg err'; el.textContent='프로필 생성 실패: '+pe.message; return; }
+  notify('가입 완료! 🐧 환영해요!');
+  switchTab('login');
+  document.getElementById('login-nick').value = nick;
+}
+
+// ── LOGIN ──
+async function doLogin() {
+  const nick = document.getElementById('login-nick').value.trim();
+  const pw = document.getElementById('login-pw').value;
+  const el = document.getElementById('login-msg');
+  const {data:prof} = await sb.from('profiles').select('id').eq('nickname', nick).maybeSingle();
+  if (!prof) { el.className='msg err'; el.textContent='존재하지 않는 닉네임이에요'; return; }
+  const email = `${nick}@penguin.village`;
+  const {error} = await sb.auth.signInWithPassword({email, password:pw});
+  if (error) { el.className='msg err'; el.textContent='비밀번호가 틀렸어요'; return; }
+}
+
+// ── LOGOUT ──
+async function doLogout() {
+  await sb.auth.signOut();
+  currentUser = null; currentProfile = null;
+  document.getElementById('app').classList.remove('visible');
+  document.getElementById('auth-screen').style.display='flex';
+}
+
+// ── INIT APP ──
+async function initApp(user) {
+  currentUser = user;
+  const {data:prof} = await sb.from('profiles').select('*').eq('id', user.id).single();
+  currentProfile = prof;
+  document.getElementById('my-nickname').textContent = prof.nickname;
+  document.getElementById('my-avatar').style.background = prof.penguin_color || '#4A90D9';
+  if (prof.is_admin) document.getElementById('admin-btn').style.display='flex';
+  document.getElementById('auth-screen').style.display='none';
+  document.getElementById('app').classList.add('visible');
+  loadFriends();
+  loadDMs();
+}
+
+// ── SECTION SWITCHING ──
+function showSection(name) {
+  document.getElementById('section-home').style.display = name==='home' ? 'block' : 'none';
+  const chatEl = document.getElementById('section-chat');
+  chatEl.style.display = name==='chat' ? 'flex' : 'none';
+  document.querySelectorAll('.channel-item').forEach(el => el.classList.remove('active'));
+  if (name==='home') document.getElementById('nav-home').classList.add('active');
+}
+
+// ── CHANNEL CHAT ──
+async function openChannel(id, title, desc) {
+  currentChannel = id;
+  document.getElementById('chat-title').textContent = title;
+  document.getElementById('chat-desc').textContent = desc;
+  document.querySelectorAll('.channel-item').forEach(el=>el.classList.remove('active'));
+  showSection('chat');
+  if (chatSubscription) { sb.removeChannel(chatSubscription); }
+  await loadMessages(id);
+  chatSubscription = sb.channel(`chat:${id}`)
+    .on('postgres_changes', {event:'INSERT', schema:'public', table:'messages', filter:`channel_id=eq.${id}`}, payload => {
+      appendMessage(payload.new);
+    }).subscribe();
+}
+
+async function loadMessages(channelId) {
+  const box = document.getElementById('chat-messages');
+  box.innerHTML = '<div class="loading">불러오는 중...</div>';
+  const {data} = await sb.from('messages').select('*, profiles(nickname, penguin_color)').eq('channel_id', channelId).order('created_at').limit(80);
+  box.innerHTML = '';
+  if (!data || data.length===0) { box.innerHTML='<div class="empty">아직 메시지가 없어요. 먼저 인사해보세요! 🐧</div>'; return; }
+  data.forEach(m => appendMessage(m, true));
+  box.scrollTop = box.scrollHeight;
+}
+
+function appendMessage(msg, noScroll=false) {
+  const box = document.getElementById('chat-messages');
+  const emptyEl = box.querySelector('.empty, .loading');
+  if (emptyEl) emptyEl.remove();
+  const nick = msg.profiles?.nickname || '익명';
+  const color = msg.profiles?.penguin_color || '#4A90D9';
+  const time = new Date(msg.created_at).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
+  const el = document.createElement('div');
+  el.className = 'msg-item';
+  el.innerHTML = `
+    <div class="msg-avatar" style="background:${color}">🐧</div>
+    <div class="msg-body">
+      <div class="msg-meta"><span>${nick}</span>${time}</div>
+      <div class="msg-text">${escapeHtml(msg.content)}</div>
+    </div>`;
+  box.appendChild(el);
+  if (!noScroll) box.scrollTop = box.scrollHeight;
+}
+
+async function sendMessage() {
+  const input = document.getElementById('chat-input');
+  const content = input.value.trim();
+  if (!content || !currentChannel) return;
+  input.value = '';
+  await sb.from('messages').insert({channel_id:currentChannel, user_id:currentUser.id, content});
+}
+
+// ── FRIENDS ──
+async function loadFriends() {
+  const {data} = await sb.from('friendships')
+    .select('*, requester:requester_id(nickname,penguin_color), receiver:receiver_id(nickname,penguin_color)')
+    .or(`requester_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`)
+    .eq('status','accepted');
+  allFriends = (data||[]).map(f => f.requester_id === currentUser.id ? f.receiver : f.requester);
+  renderFriendPanel(allFriends);
+  renderDMs();
+}
+
+function renderFriendPanel(friends) {
+  const el = document.getElementById('friend-list-panel');
+  if (!friends.length) { el.innerHTML='<div class="empty">친구를 추가해보세요!</div>'; return; }
+  el.innerHTML = friends.map(f=>`
+    <div class="friend-item" onclick="openDMWith('${f.id}','${f.nickname}')">
+      <div class="f-avatar" style="background:${f.penguin_color||'#4A90D9'}">🐧</div>
+      <div class="f-name">${f.nickname}</div>
+    </div>`).join('');
+}
+
+function filterFriends(q) {
+  const filtered = allFriends.filter(f=>f.nickname.includes(q));
+  renderFriendPanel(filtered);
+}
+
+async function loadDMs() { renderDMs(); }
+function renderDMs() {
+  const el = document.getElementById('dm-list');
+  el.innerHTML = allFriends.map(f=>`
+    <div class="channel-item" onclick="openDMWith('${f.id}','${f.nickname}')">
+      <span class="ch-icon">🐧</span>${f.nickname}
+    </div>`).join('');
+}
+
+async function openDMWith(friendId, friendNick) {
+  // find or create DM channel
+  const {data:existing} = await sb.from('channel_members').select('channel_id')
+    .eq('user_id', currentUser.id);
+  let dmChannelId = null;
+  if (existing && existing.length) {
+    for (const row of existing) {
+      const {data:other} = await sb.from('channel_members').select('user_id')
+        .eq('channel_id', row.channel_id).eq('user_id', friendId).maybeSingle();
+      if (other) { dmChannelId = row.channel_id; break; }
+    }
+  }
+  if (!dmChannelId) {
+    const {data:ch} = await sb.from('channels').insert({name:`DM:${friendNick}`, type:'dm', created_by:currentUser.id}).select().single();
+    dmChannelId = ch.id;
+    await sb.from('channel_members').insert([{channel_id:dmChannelId, user_id:currentUser.id},{channel_id:dmChannelId, user_id:friendId}]);
+  }
+  openChannel(dmChannelId, `💌 ${friendNick}`, '개인 메시지');
+}
+
+// ── FRIEND SEARCH MODAL ──
+function openFriendSearch() {
+  showModal(`
+    <h2>🔍 친구 찾기</h2>
+    <div class="input-row" style="margin-bottom:12px">
+      <input class="auth-input" id="search-nick-input" placeholder="닉네임을 입력하세요" style="margin-bottom:0"/>
+      <button class="check-btn" onclick="searchUser()">검색</button>
+    </div>
+    <div id="search-result"></div>
+  `);
+}
+
+async function searchUser() {
+  const q = document.getElementById('search-nick-input').value.trim();
+  const el = document.getElementById('search-result');
+  if (!q) return;
+  const {data} = await sb.from('profiles').select('id,nickname,penguin_color,bio').ilike('nickname',`%${q}%`).limit(10);
+  if (!data||!data.length) { el.innerHTML='<div class="empty">검색 결과가 없어요</div>'; return; }
+  el.innerHTML = data.filter(u=>u.id!==currentUser.id).map(u=>`
+    <div class="friend-item" style="background:var(--bg3);border-radius:10px;margin-bottom:6px;padding:12px">
+      <div class="f-avatar" style="background:${u.penguin_color||'#4A90D9'}">🐧</div>
+      <div style="flex:1">
+        <div class="f-name">${u.nickname}</div>
+        <div style="font-size:11px;color:var(--text2)">${u.bio||''}</div>
+      </div>
+      <button class="profile-action-btn" onclick="sendFriendReq('${u.id}','${u.nickname}')">친추 🐧</button>
+      <button class="profile-action-btn" onclick="viewProfile('${u.id}')">프로필</button>
+    </div>`).join('');
+}
+
+async function sendFriendReq(toId, toNick) {
+  const {error} = await sb.from('friendships').insert({requester_id:currentUser.id, receiver_id:toId});
+  if (error) notify('이미 친구 요청을 보냈어요!','err');
+  else notify(`${toNick}님에게 친구 요청을 보냈어요 🐧`);
+}
+
+// ── PROFILE ──
+function openMyProfile() { viewProfile(currentUser.id); }
+
+async function viewProfile(userId) {
+  const {data:prof} = await sb.from('profiles').select('*').eq('id',userId).single();
+  const isMe = userId === currentUser.id;
+  const {data:stickers} = await sb.from('user_stickers').select('*, stickers(*)').eq('user_id',userId).limit(5);
+  const slots = Array(5).fill(null);
+  (stickers||[]).forEach((s,i)=>{ slots[i]=s.stickers; });
+
+  showModal(`
+    <div class="profile-page">
+      <div class="profile-header" style="background:linear-gradient(135deg,${prof.profile_bg||'#1a1a2e'},${prof.penguin_color||'#4A90D9'})">
+        <div style="font-size:48px;text-align:center;padding-top:30px">🐧</div>
+      </div>
+      <div class="profile-penguin-area">
+        <div class="profile-penguin" style="background:${prof.penguin_color||'#4A90D9'}">🐧</div>
+        <div style="padding-bottom:8px">
+          <div class="profile-nickname">${prof.nickname}</div>
+          <div style="font-size:12px;color:var(--text2)">펭귄마을 주민</div>
+        </div>
+      </div>
+      <div class="profile-info">
+        <div class="profile-bio">${prof.bio||'소개글이 없어요'}</div>
+      </div>
+      <div style="padding:0 20px 8px;font-size:12px;color:var(--text2)">🎨 스티커</div>
+      <div class="profile-stickers">
+        ${slots.map(s=>s ? `<div class="profile-sticker"><img src="${s.image_data}"/></div>` : `<div class="profile-sticker" style="color:var(--text2);font-size:20px">+</div>`).join('')}
+      </div>
+      <div style="padding:0 20px 8px;font-size:12px;color:var(--text2)">📓 다이어리</div>
+      <div class="profile-diaryboard" id="diary-board">
+        ${prof.diary_html || '<div style="color:var(--text2);font-size:13px;text-align:center;padding-top:20px">아직 꾸미지 않았어요</div>'}
+      </div>
+      <div class="profile-actions" style="margin-top:12px">
+        ${isMe ? `
+          <button class="profile-action-btn primary" onclick="editBio()">소개글 수정</button>
+          <button class="profile-action-btn" onclick="openDrawModal()">🎨 스티커 그리기</button>
+          <button class="profile-action-btn" onclick="editDiary()">📝 다이어리 꾸미기</button>
+        ` : `
+          <button class="profile-action-btn primary" onclick="sendFriendReq('${prof.id}','${prof.nickname}')">친구추가 🐧</button>
+          <button class="profile-action-btn" onclick="openDMWith('${prof.id}','${prof.nickname}');closeModal()">메시지 보내기</button>
+        `}
+      </div>
+    </div>
+  `);
+}
+
+async function editBio() {
+  const bio = prompt('소개글을 입력하세요:', currentProfile?.bio||'');
+  if (bio === null) return;
+  await sb.from('profiles').update({bio}).eq('id',currentUser.id);
+  currentProfile.bio = bio;
+  notify('소개글이 업데이트됐어요 🐧');
+  closeModal();
+}
+
+async function editDiary() {
+  const content = prompt('다이어리 내용을 입력하세요 (HTML 가능):', '');
+  if (content === null) return;
+  await sb.from('profiles').update({diary_html: content}).eq('id',currentUser.id);
+  notify('다이어리가 업데이트됐어요! 📓');
+  closeModal();
+}
+
+// ── DRAW STICKER ──
+let drawing=false, drawCtx=null, drawCanvas=null, drawTool='pen';
+function openDrawModal() {
+  showModal(`
+    <h2>🎨 스티커 그리기</h2>
+    <div class="draw-tools">
+      <input type="color" id="draw-color" value="#000000" title="색상"/>
+      <input type="range" id="draw-size" min="2" max="30" value="6" title="굵기"/>
+      <button class="tool-btn active" id="tool-pen" onclick="setTool('pen')">펜</button>
+      <button class="tool-btn" id="tool-eraser" onclick="setTool('eraser')">지우개</button>
+      <button class="tool-btn" onclick="clearCanvas()">초기화</button>
+    </div>
+    <canvas id="draw-canvas" width="300" height="300"></canvas>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="auth-btn" style="flex:1" onclick="saveSticker(false)">내 스티커로 저장</button>
+      <button class="auth-btn" style="flex:1;background:var(--accent2)" onclick="saveSticker(true)">상점에 공유</button>
+    </div>
+  `);
+  setTimeout(initCanvas, 50);
+}
+
+function initCanvas() {
+  drawCanvas = document.getElementById('draw-canvas');
+  if (!drawCanvas) return;
+  drawCtx = drawCanvas.getContext('2d');
+  drawCtx.fillStyle='#ffffff'; drawCtx.fillRect(0,0,300,300);
+  drawCanvas.addEventListener('pointerdown', e=>{ drawing=true; drawCtx.beginPath(); drawCtx.moveTo(e.offsetX,e.offsetY); });
+  drawCanvas.addEventListener('pointermove', e=>{ if(!drawing)return; drawCtx.lineTo(e.offsetX,e.offsetY); drawCtx.strokeStyle=drawTool==='eraser'?'#fff':document.getElementById('draw-color').value; drawCtx.lineWidth=document.getElementById('draw-size').value; drawCtx.lineCap='round'; drawCtx.stroke(); });
+  drawCanvas.addEventListener('pointerup', ()=>drawing=false);
+}
+
+function setTool(t) { drawTool=t; document.getElementById('tool-pen').classList.toggle('active',t==='pen'); document.getElementById('tool-eraser').classList.toggle('active',t==='eraser'); }
+function clearCanvas() { drawCtx.fillStyle='#fff'; drawCtx.fillRect(0,0,300,300); }
+
+async function saveSticker(shared=false) {
+  const name = prompt('스티커 이름을 입력하세요:','나의 스티커');
+  if (!name) return;
+  const imageData = drawCanvas.toDataURL('image/png');
+  const {data:st} = await sb.from('stickers').insert({creator_id:currentUser.id, name, image_data:imageData, is_shared:shared, price:0}).select().single();
+  await sb.from('user_stickers').insert({user_id:currentUser.id, sticker_id:st.id});
+  notify(shared ? '스티커가 상점에 공유됐어요! 🎨' : '스티커가 저장됐어요! 🎨');
+  closeModal();
+}
+
+// ── STICKER SHOP ──
+async function openStickers() {
+  const {data} = await sb.from('stickers').select('*, profiles(nickname)').eq('is_shared',true).order('created_at',{ascending:false}).limit(30);
+  showModal(`
+    <h2>🎨 스티커 상점</h2>
+    <div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:8px">
+      ${(data||[]).map(s=>`
+        <div style="text-align:center;cursor:pointer" onclick="acquireSticker('${s.id}','${s.name}')">
+          <div style="width:70px;height:70px;border:1px solid var(--border);border-radius:10px;overflow:hidden;background:#fff">
+            <img src="${s.image_data}" style="width:100%;height:100%;object-fit:contain"/>
+          </div>
+          <div style="font-size:11px;margin-top:4px;color:var(--text2)">${s.name}</div>
+          <div style="font-size:10px;color:var(--text2)">by ${s.profiles?.nickname}</div>
+        </div>`).join('')}
+      ${!data||!data.length ? '<div class="empty" style="width:100%">아직 공유된 스티커가 없어요</div>' : ''}
+    </div>
+    <button class="auth-btn" style="margin-top:20px" onclick="openDrawModal()">🎨 내 스티커 만들기</button>
+  `);
+}
+
+async function acquireSticker(stickerId, name) {
+  const {error} = await sb.from('user_stickers').insert({user_id:currentUser.id, sticker_id:stickerId});
+  if (error) notify('이미 보유한 스티커에요!','err');
+  else notify(`${name} 스티커를 획득했어요! 🎉`);
+}
+
+// ── GAMES ──
+function openGameModal() {
+  showModal(`
+    <h2>🎮 미니게임</h2>
+    <p style="color:var(--text2);font-size:13px;margin-bottom:20px">게임을 선택해서 랭킹에 도전해보세요!</p>
+    <div class="home-grid">
+      <div class="home-card" onclick="playNumberGame()">
+        <div class="card-icon">🔢</div>
+        <div class="card-title">숫자 맞추기</div>
+        <div class="card-desc">1~100 랜덤 숫자를 맞춰요</div>
+      </div>
+      <div class="home-card" onclick="playReactionGame()">
+        <div class="card-icon">⚡</div>
+        <div class="card-title">반응속도 테스트</div>
+        <div class="card-desc">얼마나 빠른지 테스트</div>
+      </div>
+      <div class="home-card" onclick="openRanking()">
+        <div class="card-icon">🏆</div>
+        <div class="card-title">랭킹 보기</div>
+        <div class="card-desc">TOP 플레이어 확인</div>
+      </div>
+    </div>
+    <p style="color:var(--text2);font-size:12px;margin-top:16px">💡 내가 만든 미니게임이 있으면 연동해드릴게요!</p>
+  `);
+}
+
+function playNumberGame() {
+  const target = Math.floor(Math.random()*100)+1;
+  let tries = 0;
+  function guess() {
+    const n = parseInt(prompt(`1~100 사이의 숫자를 맞춰보세요! (시도: ${tries})`));
+    if (isNaN(n)) return;
+    tries++;
+    if (n===target) {
+      const score = Math.max(100 - tries*10, 10);
+      saveScore('숫자맞추기', score);
+      alert(`정답! 🎉 ${tries}번 만에 맞췄어요! 점수: ${score}`);
+      closeModal();
+    } else if (n<target) { alert('더 크게! ↑'); guess(); }
+    else { alert('더 작게! ↓'); guess(); }
+  }
+  guess();
+}
+
+function playReactionGame() {
+  closeModal();
+  showModal(`
+    <h2>⚡ 반응속도 테스트</h2>
+    <div id="reaction-area" style="text-align:center;padding:40px 20px">
+      <div id="reaction-box" style="width:200px;height:200px;background:var(--bg3);border-radius:20px;margin:0 auto;display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;border:2px solid var(--border)" onclick="reactionClick()">
+        준비하세요...
+      </div>
+      <div id="reaction-result" style="margin-top:16px;color:var(--text2);font-size:14px"></div>
+    </div>
+  `);
+  let startTime=null, waiting=false, timeout=null;
+  const box = document.getElementById('reaction-box');
+  setTimeout(()=>{
+    timeout = setTimeout(()=>{
+      box.style.background='#3fb950'; box.textContent='지금 클릭!'; box.style.color='#fff';
+      startTime=Date.now(); waiting=true;
+    }, 1000+Math.random()*3000);
+  }, 500);
+  window.reactionClick = function() {
+    if (!waiting) { clearTimeout(timeout); box.textContent='너무 일찍!'; box.style.background='var(--accent3)'; return; }
+    const ms = Date.now()-startTime; waiting=false;
+    const score = Math.max(1000-ms, 100);
+    document.getElementById('reaction-result').textContent = `반응속도: ${ms}ms | 점수: ${score}`;
+    box.style.background='var(--accent)'; box.textContent=`${ms}ms!`;
+    saveScore('반응속도', score);
+  };
+}
+
+async function saveScore(game, score) {
+  await sb.from('game_scores').insert({user_id:currentUser.id, game_name:game, score});
+  notify(`점수 ${score}점이 등록됐어요! 🏆`);
+}
+
+// ── RANKING ──
+async function openRanking() {
+  const {data} = await sb.from('game_scores').select('*, profiles(nickname)').order('score',{ascending:false}).limit(20);
+  showModal(`
+    <h2>🏆 랭킹</h2>
+    <div class="rank-list" style="margin-top:12px">
+      ${(data||[]).map((r,i)=>`
+        <div class="rank-item">
+          <div class="rank-num ${i===0?'gold':i===1?'silver':i===2?'bronze':''}">${i+1}</div>
+          <div>🐧</div>
+          <div class="rank-name">${r.profiles?.nickname||'?'}<br><span style="font-size:11px;color:var(--text2)">${r.game_name}</span></div>
+          <div class="rank-score">${r.score}점</div>
+        </div>`).join('')}
+      ${!data||!data.length ? '<div class="empty">아직 기록이 없어요</div>' : ''}
+    </div>
+  `);
+}
+
+// ── ADMIN ──
+async function openAdmin() {
+  if (!currentProfile?.is_admin) return;
+  const {data:users} = await sb.from('profiles').select('*').order('created_at',{ascending:false});
+  showModal(`
+    <h2>⚙️ 관리자 패널</h2>
+    <p style="color:var(--text2);font-size:13px;margin-bottom:16px">총 유저: ${users?.length||0}명</p>
+    <table class="admin-table">
+      <thead><tr><th>닉네임</th><th>가입일</th><th>관리자</th><th>액션</th></tr></thead>
+      <tbody>
+        ${(users||[]).map(u=>`
+          <tr>
+            <td>${u.nickname}</td>
+            <td>${new Date(u.created_at).toLocaleDateString('ko-KR')}</td>
+            <td>${u.is_admin?'✅':''}</td>
+            <td>
+              <button class="tool-btn" onclick="deleteUser('${u.id}','${u.nickname}')">삭제</button>
+            </td>
+          </tr>`).join('')}
+      </tbody>
+    </table>
+  `);
+}
+
+async function deleteUser(userId, nick) {
+  if (!confirm(`${nick}님을 삭제하시겠어요?`)) return;
+  await sb.from('profiles').delete().eq('id',userId);
+  notify(`${nick}님이 삭제됐어요`);
+  openAdmin();
+}
+
+// ── MODAL ──
+function showModal(html) {
+  const container = document.getElementById('modal-container');
+  container.innerHTML = `
+    <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal">
+        <button class="modal-close" onclick="closeModal()">✕</button>
+        ${html}
+      </div>
+    </div>`;
+}
+function closeModal() { document.getElementById('modal-container').innerHTML=''; }
+
+// ── UTILS ──
+function escapeHtml(t) { return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ── AUTH STATE ──
+sb.auth.onAuthStateChange(async (event, session) => {
+  if (session?.user) { await initApp(session.user); }
+  else {
+    document.getElementById('app').classList.remove('visible');
+    document.getElementById('auth-screen').style.display='flex';
+  }
+});
+</script>
+</body>
+</html>
